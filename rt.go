@@ -19,6 +19,9 @@ For safer reverse routing, the ServeMux type in this package provides the same
 API as http.ServeMux but exposes an additional method, CheckReverse().  This
 method can ensure that there are compile-time checked named references to route
 all (desired) patterns.
+
+BUG: host-specific patterns are not handled like http.ServeMux.
+BUG: no pattern sanitization done (does stdlib do this?)
 */
 package rt
 
