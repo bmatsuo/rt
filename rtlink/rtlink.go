@@ -1,4 +1,4 @@
-// Package rtlink provides linking for web servers.
+// Package rtlink defines helper functions for creating links with rt.
 package rtlink
 
 import (
