@@ -2,6 +2,23 @@
 Package rt expands parameter and reverse-route support for http.ServeMux.
 
 This API is experimental.
+
+Route Parameters
+
+The Decompose function allows access to "suffix parameters" of HTTP request
+paths.  The syntax for this function is compatible with http.ServeMux and the
+two are meant to be used together..
+
+Reverse Routes
+
+The Compose function provides path construction for routes.  It's a simple
+abstraction for string concatenation but provides guards for routes that don't
+accept parameters. Compose is flexible can easily be used with http.ServeMux.
+
+For safer reverse routing, the ServeMux type in this package provides the same
+API as http.ServeMux but exposes an additional method, CheckReverse().  This
+method can ensure that there are compile-time checked named references to route
+all (desired) patterns.
 */
 package rt
 
