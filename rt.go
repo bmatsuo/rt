@@ -53,8 +53,8 @@ func NewServeMux() *ServeMux {
 func (mux *ServeMux) Handle(pat string, h http.Handler) {
 	mux.mut.Lock()
 	mux.pats = append(mux.pats, pat)
-	mux.mut.Unlock()
 	mux.mux.Handle(pat, h)
+	mux.mut.Unlock()
 }
 
 // HandlerFunc behaves the same as the corresponding http.ServeMux method.
