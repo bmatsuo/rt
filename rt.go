@@ -5,7 +5,14 @@ This API is experimental.
 */
 package rt
 
-import "strings"
+import (
+	"fmt"
+	"net/http"
+	"reflect"
+	"sort"
+	"strings"
+	"sync"
+)
 
 // Compose creates a path from pat with parameter s.
 // Compose returns pat if pat does not take a route parameter.
@@ -27,4 +34,122 @@ func Decompose(pat, path string) string {
 		return ""
 	}
 	return suf
+}
+
+// ServeMux is a drop-in replacement for http.ServeMux that can be checked for
+// reversable routes.
+type ServeMux struct {
+	mut  sync.Mutex
+	pats []string
+	mux  *http.ServeMux
+}
+
+// Handle behaves the same as the corresponding http.ServeMux method.
+func (mux *ServeMux) Handle(pat string, h http.Handler) {
+	mux.mut.Lock()
+	mux.pats = append(mux.pats, pat)
+	mux.mut.Unlock()
+	mux.mux.Handle(pat, h)
+}
+
+// HandlerFunc behaves the same as the corresponding http.ServeMux method.
+func (mux *ServeMux) HandleFunc(pat string, h http.HandlerFunc) {
+	mux.Handle(pat, h)
+}
+
+// Handler behaves the same as the corresponding http.ServeMux method.
+func (mux *ServeMux) Handler(req *http.Request) (http.Handler, string) {
+	return mux.mux.Handler(req)
+}
+
+// ServeHTTP behaves the same as the corresponding http.ServeMux method.
+func (mux *ServeMux) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
+	mux.mux.ServeHTTP(resp, req)
+}
+
+// NonReversableRoutes are routes which cannot be produced with a reverse
+// mapping.
+type IrreversibleRoutesError []string
+
+func (err IrreversibleRoutesError) Error() string {
+	return fmt.Sprintf("non reversable routes %q", err)
+}
+
+// NonExistentRoutes are routes which are present in a ServeMux.
+type NonExistentRoutesError []string
+
+func (err NonExistentRoutesError) Error() string {
+	return fmt.Sprintf("non existent routes %q", err)
+}
+
+// Reversible checks if structure is reverse map for patterns handled by mux.
+// Structure must be a struct with only string fields.
+func (mux *ServeMux) Reversible(structure interface{}) error {
+	val, err := deref(reflect.ValueOf(structure))
+	if err != nil {
+		return err
+	}
+	kind := val.Kind()
+	if kind != reflect.Struct {
+		return fmt.Errorf("non-struct value")
+	}
+	var all []string
+	numField := val.NumField()
+	for i := 0; i <= numField; i++ {
+		field := val.Field(i)
+		fkind := field.Kind()
+		if fkind != reflect.String {
+			return fmt.Errorf("non-string field %q", val.Type().Field(i).Name)
+		}
+		fstring := field.String()
+		all = append(all, fstring)
+	}
+	sort.Strings(all)
+
+	mux.mut.Lock()
+	defer mux.mut.Unlock()
+	sort.Strings(mux.pats)
+	n := len(all)
+	if n < len(mux.pats) {
+		n = len(mux.pats)
+	}
+
+	var irrev IrreversibleRoutesError
+	var notexist NonExistentRoutesError
+	i, j := 0, 0
+	for i < n && j < n {
+		switch {
+		case mux.pats[i] < all[j]:
+			irrev = append(irrev, mux.pats[i])
+			i++
+		case mux.pats[i] > all[j]:
+			notexist = append(notexist, all[j])
+			j++
+		default:
+			i++
+			j++
+		}
+	}
+	if len(notexist) > 0 {
+		return notexist
+	}
+	if len(irrev) > 0 {
+		return irrev
+	}
+	return nil
+}
+
+// deref repeatedly dereferences val until the result is not a pointer.
+func deref(val reflect.Value) (reflect.Value, error) {
+	if !val.IsValid() {
+		return val, fmt.Errorf("invalid value")
+	}
+	kind := val.Kind()
+	if kind != reflect.Ptr {
+		return val, nil
+	}
+	if val.IsNil() {
+		return reflect.Value{}, fmt.Errorf("nil")
+	}
+	return deref(reflect.Indirect(val))
 }
