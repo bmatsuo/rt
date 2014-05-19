@@ -25,5 +25,5 @@ func ExampleDecompose_parameter() {
 	}
 	io.Copy(os.Stdout, resp.Body)
 	resp.Body.Close()
-	// Output hello world
+	// Output: hello world
 }
