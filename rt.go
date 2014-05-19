@@ -87,9 +87,9 @@ func (err NonExistentRoutesError) Error() string {
 	return fmt.Sprintf("non-existent routes: %q", []string(err))
 }
 
-// Reversible checks if structure is reverse map for patterns handled by mux.
-// Structure must be a struct with only string fields.
-func (mux *ServeMux) Reversible(structure interface{}) error {
+// CheckReverse ensures structure is a reverse map for routes handled by mux.
+// Structure must be a struct containing only string fields.
+func (mux *ServeMux) CheckReverse(structure interface{}) error {
 	val, err := deref(reflect.ValueOf(structure))
 	if err != nil {
 		return err
