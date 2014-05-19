@@ -27,3 +27,30 @@ func ExampleDecompose_parameter() {
 	resp.Body.Close()
 	// Output: hello world
 }
+
+// This example demonstrates how to write reversible routes and how to ensure your routes are reversible at runtime.
+func ExampleServeMux_reversible() {
+	type ExampleRoutes struct {
+		Hello   string
+		Goodbye string
+	}
+	routes := ExampleRoutes{
+		"/hello/",
+		"/goodbye/",
+	}
+	mux := NewServeMux()
+	mux.HandleFunc(routes.Hello, func(resp http.ResponseWriter, req *http.Request) { fmt.Fprintln(resp, "hello world") })
+	mux.HandleFunc(routes.Goodbye, func(resp http.ResponseWriter, req *http.Request) { fmt.Fprintln(resp, "goodbye") })
+	fmt.Println(mux.Reversible(routes))
+
+	mux.HandleFunc("/monitor", func(resp http.ResponseWriter, req *http.Request) { fmt.Fprintln(resp, "ok") })
+	fmt.Println(mux.Reversible(routes).(IrreversibleRoutesError)) // some errors may be ignorable
+
+	mux = NewServeMux()
+	mux.HandleFunc(routes.Hello, func(resp http.ResponseWriter, req *http.Request) { fmt.Fprintln(resp, "hello world") })
+	fmt.Println(mux.Reversible(routes))
+	// Output:
+	// <nil>
+	// irreversible routes: ["/monitor"]
+	// non-existent routes: ["/goodbye/"]
+}
