@@ -68,7 +68,7 @@ type abslinker struct {
 }
 
 // NewHostLinker returns a Linker directing clients absolute URLs on req.Host.
-// If useHTTPS is false the "http" scheme is used in links.
+// If useHTTPS is false the "http" scheme is used in URLs.
 func NewHostLinker(req *http.Request, useHTTPS bool) Linker {
 	return &abslinker{req, useHTTPS}
 }
