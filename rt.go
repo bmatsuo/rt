@@ -78,7 +78,7 @@ func (mux *ServeMux) Handle(pat string, h http.Handler) {
 	mux.mut.Unlock()
 }
 
-// HandlerFunc behaves the same as the corresponding http.ServeMux method.
+// HandleFunc behaves the same as the corresponding http.ServeMux method.
 func (mux *ServeMux) HandleFunc(pat string, h http.HandlerFunc) {
 	mux.Handle(pat, h)
 }
@@ -93,15 +93,16 @@ func (mux *ServeMux) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 	mux.mux.ServeHTTP(resp, req)
 }
 
-// NonReversableRoutes are routes which cannot be produced with a reverse
-// mapping.
+// IrreversibleRoutesError contains routes which cannot be produced with a
+// potential reverse mapping.
 type IrreversibleRoutesError []string
 
 func (err IrreversibleRoutesError) Error() string {
 	return fmt.Sprintf("irreversible routes: %q", []string(err))
 }
 
-// NonExistentRoutes are routes which are present in a ServeMux.
+// NonExistentRoutesError contains routes from a potential reverse mapping that
+// are not present in a ServeMux.
 type NonExistentRoutesError []string
 
 func (err NonExistentRoutesError) Error() string {
