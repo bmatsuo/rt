@@ -11,12 +11,14 @@ import (
 
 func TestCompose(t *testing.T) {
 	for i, test := range []struct{ pat, param, path string }{
+		{"", "hello", ""},
 		{"/", "", "/"},
 		{"/", "/", "//"},
 		{"/", "hello", "/hello"},
+		{"example.com", "hello", ""}, // looks like this is stdlib behavior
+		{"example.com/", "hello", "/hello"},
 		{"/hello", "world", "/hello"},
 		{"/hello/", "world", "/hello/world"},
-		{"hello/", "world", "hello/world"},
 		// weird cases
 		{"", "", ""},
 		{"", "hello", ""},
@@ -34,6 +36,9 @@ func TestDecompose(t *testing.T) {
 		{"/", "/hello", "hello"},
 		{"/hello/", "/hello/world", "world"},
 		{"/hello", "/hello/world", ""},
+		{"example.com/", "/hello", "hello"},
+		{"example.com/hello/", "/hello/world", "world"},
+		{"example.com/hello", "/hello/world", ""},
 		// weird cases not generally seen
 		{"", "", ""},
 		{"", "hello", ""},

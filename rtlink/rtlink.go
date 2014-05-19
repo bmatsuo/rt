@@ -2,6 +2,8 @@
 Package rtlink defines helper functions for creating links with rt.
 
 This API is experimental.
+
+BUG: host-specific patterns are not handled properly.
 */
 package rtlink
 

@@ -20,8 +20,6 @@ API as http.ServeMux but exposes an additional method, CheckReverse().  This
 method can ensure that there are compile-time checked named references to route
 all (desired) patterns.
 
-BUG: host-specific patterns are not handled like http.ServeMux.
-
 BUG: no pattern sanitization done (does stdlib do this?)
 */
 package rt
@@ -35,9 +33,25 @@ import (
 	"sync"
 )
 
+// HostPath returns pat's host and path parts.
+func HostPath(pat string) (host, path string) {
+	if pat == "" {
+		return "", ""
+	}
+	if pat[0] == '/' {
+		return "", pat
+	}
+	i := strings.Index(pat, "/")
+	if i < 0 {
+		return pat, "" // this is weird. but consistent with stdlib.
+	}
+	return pat[:i], pat[i:]
+}
+
 // Compose creates a path from pat with parameter s.
 // Compose returns pat if pat does not take a route parameter.
 func Compose(pat, s string) string {
+	_, pat = HostPath(pat)
 	if !strings.HasSuffix(pat, "/") {
 		return pat
 	}
@@ -46,9 +60,18 @@ func Compose(pat, s string) string {
 
 // Decompose returns the parameter of pat that matches path.
 // Decompose returns the empty string if pat doesn't match path.
+// If pat is a host-specific pattern the host is ignored.
 func Decompose(pat, path string) string {
+	_, pat = HostPath(pat)
 	if !strings.HasSuffix(pat, "/") {
 		return ""
+	}
+	if !strings.HasPrefix(pat, "/") {
+		pieces := strings.SplitN(pat, "/", 2)
+		if len(pieces) == 1 {
+			return ""
+		}
+		pat = "/" + pieces[1]
 	}
 	suf := strings.TrimPrefix(path, pat)
 	if suf == path {
