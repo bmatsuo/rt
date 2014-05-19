@@ -1,4 +1,8 @@
-// Package rtlink defines helper functions for creating links with rt.
+/*
+Package rtlink defines helper functions for creating links with rt.
+
+This API is experimental.
+*/
 package rtlink
 
 import (
