@@ -1,5 +1,5 @@
 /*
-Package rt provides route composition.
+Package rt expands parameter and reverse-route support for http.ServeMux.
 
 This API is experimental.
 */
