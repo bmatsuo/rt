@@ -44,6 +44,11 @@ type ServeMux struct {
 	mux  *http.ServeMux
 }
 
+// NewServeMux allocates and returns a new ServeMux.
+func NewServeMux() *ServeMux {
+	return &ServeMux{mux: http.NewServeMux()}
+}
+
 // Handle behaves the same as the corresponding http.ServeMux method.
 func (mux *ServeMux) Handle(pat string, h http.Handler) {
 	mux.mut.Lock()
@@ -72,14 +77,14 @@ func (mux *ServeMux) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 type IrreversibleRoutesError []string
 
 func (err IrreversibleRoutesError) Error() string {
-	return fmt.Sprintf("non reversable routes %q", err)
+	return fmt.Sprintf("irreversible routes: %q", []string(err))
 }
 
 // NonExistentRoutes are routes which are present in a ServeMux.
 type NonExistentRoutesError []string
 
 func (err NonExistentRoutesError) Error() string {
-	return fmt.Sprintf("non existent routes %q", err)
+	return fmt.Sprintf("non-existent routes: %q", []string(err))
 }
 
 // Reversible checks if structure is reverse map for patterns handled by mux.
@@ -95,7 +100,7 @@ func (mux *ServeMux) Reversible(structure interface{}) error {
 	}
 	var all []string
 	numField := val.NumField()
-	for i := 0; i <= numField; i++ {
+	for i := 0; i < numField; i++ {
 		field := val.Field(i)
 		fkind := field.Kind()
 		if fkind != reflect.String {
@@ -109,15 +114,12 @@ func (mux *ServeMux) Reversible(structure interface{}) error {
 	mux.mut.Lock()
 	defer mux.mut.Unlock()
 	sort.Strings(mux.pats)
-	n := len(all)
-	if n < len(mux.pats) {
-		n = len(mux.pats)
-	}
 
 	var irrev IrreversibleRoutesError
 	var notexist NonExistentRoutesError
 	i, j := 0, 0
-	for i < n && j < n {
+	n, m := len(mux.pats), len(all)
+	for i < n && j < m {
 		switch {
 		case mux.pats[i] < all[j]:
 			irrev = append(irrev, mux.pats[i])
@@ -129,6 +131,12 @@ func (mux *ServeMux) Reversible(structure interface{}) error {
 			i++
 			j++
 		}
+	}
+	if i < n {
+		irrev = append(irrev, mux.pats[i:]...)
+	}
+	if j < m {
+		notexist = append(notexist, all[j:]...)
 	}
 	if len(notexist) > 0 {
 		return notexist
