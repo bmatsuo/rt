@@ -8,6 +8,11 @@ import (
 	"github.com/bmatsuo/rt"
 )
 
+type Link struct {
+	Rel  string  `json:"rel"`
+	HRef url.URL `json:"href"`
+}
+
 // AbsURL is like URL but returns an absolute URL.  If https is false then the
 // "http" scheme is used.
 func AbsURL(https bool, host, pat, s string, q url.Values) url.URL {
@@ -30,20 +35,46 @@ func URL(pat, s string, q url.Values) url.URL {
 	}
 }
 
-type Linker struct {
-	UseHTTPS bool
+// Linker is a type that can be used for making links.
+//	friendLink := Link{
+//		"urn:myvocab:friend",
+//		ln.URL("/friends/", friend.ID, nil),
+//	}
+//	friendsLink := Link{
+//		"urn:myvocab:friend-list",
+//		ln.URL("/friends/", "", url.Values{
+//			{"maxValues": 10},
+//			{"sortBy": "relevance"},
+//		},
+//	)}
+type Linker interface {
+	// URL returns a URL with a path composed of pat and s and with query q.
+	// The returned URL may not be absolute.
+	URL(pat, s string, q url.Values) url.URL
 }
 
-func (ln *Linker) URL(req *http.Request, pat, s string, q url.Values) url.URL {
-	return AbsURL(ln.UseHTTPS, req.Host, pat, s, q)
+// LinkerFunc is a function that implements Linker.
+type LinkerFunc func(pat, s string, q url.Values) url.URL
+
+// URL returns the result of fn(pat, s, q).
+func (fn LinkerFunc) URL(pat, s string, q url.Values) url.URL {
+	return fn(pat, s, q)
 }
 
-func (ln *Linker) Link(req *http.Request, rel, pat, s string, q url.Values) Link {
-	u := ln.URL(req, pat, s, q)
-	return Link{u, rel}
+// Linker is a helper type for creating links.
+type abslinker struct {
+	req      *http.Request
+	useHTTPS bool
 }
 
-type Link struct {
-	HRef url.URL `json:"href"`
-	Rel  string  `json:"rel"`
+// NewHostLinker returns a Linker directing clients absolute URLs on req.Host.
+// If useHTTPS is false the "http" scheme is used in links.
+func NewHostLinker(req *http.Request, useHTTPS bool) Linker {
+	return &abslinker{req, useHTTPS}
+}
+
+// URL is like the function URL but uses ln and req.Host to determine the
+// scheme and host to use.
+func (ln *abslinker) URL(pat, s string, q url.Values) url.URL {
+	return AbsURL(ln.useHTTPS, ln.req.Host, pat, s, q)
 }
