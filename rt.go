@@ -64,13 +64,6 @@ func Decompose(pat, path string) string {
 	if !strings.HasSuffix(pat, "/") {
 		return ""
 	}
-	if !strings.HasPrefix(pat, "/") {
-		pieces := strings.SplitN(pat, "/", 2)
-		if len(pieces) == 1 {
-			return ""
-		}
-		pat = "/" + pieces[1]
-	}
 	suf := strings.TrimPrefix(path, pat)
 	if suf == path {
 		return ""
