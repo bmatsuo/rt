@@ -36,6 +36,7 @@ func URL(pat, s string, q url.Values) url.URL {
 }
 
 // Linker is a type that can be used for making links.
+//	ln := NewHostLinker(req, false)
 //	friendLink := Link{
 //		"urn:myvocab:friend",
 //		ln.URL("/friends/", friend.ID, nil),
