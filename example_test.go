@@ -2,7 +2,6 @@ package rt
 
 import (
 	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -11,32 +10,49 @@ import (
 	"os"
 )
 
+func curl(url string) {
+	resp, err := http.Get(url)
+	if err != nil {
+		log.Fatal(err)
+	}
+	io.Copy(os.Stdout, resp.Body)
+	resp.Body.Close()
+}
+
 // This shows how you can extract a path parameter using http.ServeMux.
 func ExampleDecompose_parameter() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/hello/", func(resp http.ResponseWriter, req *http.Request) {
 		_, pat := mux.Handler(req)
 		name := Decompose(pat, req.URL.Path)
-		fmt.Fprintln(resp, "hello", name)
+		fmt.Fprintf(resp, "hello %s!", name)
 	})
 
-	// this is where you would call http.ListenAndServe()
+	// this is where you would call http.ListenAndServe() and be done.
 	server := httptest.NewServer(mux)
 	defer server.Close()
-
-	// make a request for grins
-	resp, err := http.Get(server.URL + "/hello/world")
-	if err != nil {
-		log.Fatal(err)
-	}
-	io.Copy(os.Stdout, resp.Body)
-	resp.Body.Close()
-	// Output: hello world
+	curl(server.URL + "/hello/world")
+	// Output: hello world!
 }
 
-// This complete example demonstrates how to write reversible routes with rt
-// with maximum runtime safety.  The actual server logic is bizarre.  But it
-// demonstrates all the features of rt.
+// This is the most trivial example of rt.  In fact it works with plain old
+// http.ServeMux.
+func Example_hello() {
+	mux := NewServeMux()
+	mux.HandleFunc("/hello", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, "hello world!")
+	})
+
+	// this is where you would call http.ListenAndServe() and be done.
+	server := httptest.NewServer(mux)
+	defer server.Close()
+	curl(server.URL + "/hello")
+	// Output: hello world!
+}
+
+// This complete example demonstrates how to implement and use safe, reversible
+// routes with rt.  The actual server logic is bizarre so don't pay too much
+// attention.
 func Example_reverse() {
 	type Server struct {
 		rts struct {
@@ -73,9 +89,7 @@ func Example_reverse() {
 		mux.HandleFunc(server.rts.Users, func(w http.ResponseWriter, r *http.Request) {
 			_, pat := mux.Handler(r)
 			userID := Decompose(pat, r.URL.Path)
-			json.NewEncoder(w).Encode(map[string]string{
-				"id": userID,
-			})
+			fmt.Fprintf(w, "hello %s!", userID)
 		})
 
 		return // naked return is required for deferred error handling
@@ -90,20 +104,12 @@ func Example_reverse() {
 		log.Fatal(err)
 	}
 
-	// here you would call http.ListenAndServe() and be done.
+	// this is where you would call http.ListenAndServe() and be done.
 	httpServer := httptest.NewServer(mux)
 	defer httpServer.Close()
-
-	// make a request for grins.
-	sessionID := base64.URLEncoding.EncodeToString([]byte("123"))
-	resp, err := http.Get(httpServer.URL + Compose(s.rts.Sessions, sessionID))
-	if err != nil {
-		log.Fatal(err)
-	}
-	io.Copy(os.Stdout, resp.Body)
-	resp.Body.Close()
-	// Output:
-	// {"id":"123"}
+	sessionID := base64.URLEncoding.EncodeToString([]byte("world"))
+	curl(httpServer.URL + Compose(s.rts.Sessions, sessionID))
+	// Output: hello world!
 }
 
 // This example shows how Struct() populates struct field values.
