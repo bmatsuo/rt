@@ -197,3 +197,40 @@ func deref(val reflect.Value) (reflect.Value, error) {
 	}
 	return deref(reflect.Indirect(val))
 }
+
+// Struct fills the fields of the struct at structptr with values from the
+// field tags.
+func Struct(structptr interface{}) error {
+	val := reflect.ValueOf(structptr)
+	kind := val.Kind()
+	if kind != reflect.Ptr {
+		return fmt.Errorf("not a struct pointer")
+	}
+	val, err := deref(val)
+	if err != nil {
+		return err
+	}
+	kind = val.Kind()
+	if kind != reflect.Struct {
+		return fmt.Errorf("not a struct pointer")
+	}
+	typ := val.Type()
+	numField := val.NumField()
+	for i := 0; i < numField; i++ {
+		fieldv := val.Field(i)
+		fieldt := typ.Field(i)
+		fieldk := fieldt.Type.Kind()
+		if fieldk != reflect.String {
+			return fmt.Errorf("non-string field %q (%s)", fieldt.Name, fieldt.Type.Name())
+		}
+		if fieldv.Len() != 0 {
+			continue
+		}
+		tag := fieldt.Tag.Get("rt")
+		if tag == "" {
+			return fmt.Errorf("empty field with no tag value %q", fieldt.Name)
+		}
+		fieldv.Set(reflect.ValueOf(tag))
+	}
+	return nil
+}

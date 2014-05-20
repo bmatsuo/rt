@@ -79,3 +79,28 @@ func ExampleServeMux_reverse() {
 	// Output:
 	// {"id":"123"}
 }
+
+func ExampleStruct() {
+	defer fmt.Println("success")
+	check := func(err error) {
+		if err != nil {
+			panic("failure")
+		}
+	}
+	rts := new(struct {
+		Users      string `rt:"/users/"`
+		Pets       string `rt:"/pets/"`
+		Deductions string `rt:"/deductions/"`
+	})
+	check(Struct(rts))
+	fmt.Println(rts)
+	mux := NewServeMux()
+	defer func() { check(mux.CheckReverse(rts)) }()
+	ok := func(w http.ResponseWriter, r *http.Request) { fmt.Println("ok") }
+	mux.HandleFunc(rts.Users, ok)
+	mux.HandleFunc(rts.Pets, ok)
+	mux.HandleFunc(rts.Deductions, ok)
+	// Output:
+	// &{/users/ /pets/ /deductions/}
+	// success
+}
