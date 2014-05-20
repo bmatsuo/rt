@@ -19,8 +19,12 @@ func ExampleDecompose_parameter() {
 		name := Decompose(pat, req.URL.Path)
 		fmt.Fprintln(resp, "hello", name)
 	})
+
+	// this is where you would call http.ListenAndServe()
 	server := httptest.NewServer(mux)
 	defer server.Close()
+
+	// make a request for grins
 	resp, err := http.Get(server.URL + "/hello/world")
 	if err != nil {
 		log.Fatal(err)
@@ -90,7 +94,7 @@ func Example_reverse() {
 	httpServer := httptest.NewServer(mux)
 	defer httpServer.Close()
 
-	// make a request to the new server.
+	// make a request for grins.
 	sessionID := base64.URLEncoding.EncodeToString([]byte("123"))
 	resp, err := http.Get(httpServer.URL + Compose(s.rts.Sessions, sessionID))
 	if err != nil {
