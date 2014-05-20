@@ -80,27 +80,42 @@ func ExampleServeMux_reverse() {
 	// {"id":"123"}
 }
 
+// Basic usage of Struct() to implement reverse routes.  Deferring with
+// mux.CheckReverse(rts) is important as route structure becomes more complex.
 func ExampleStruct() {
-	defer fmt.Println("success")
-	check := func(err error) {
-		if err != nil {
-			panic("failure")
+	// in practice, server would be a type and httpRoutes should be a method
+	// on that type.
+	server := new(struct {
+		rts struct {
+			Users      string `rt:"/v1/users/"`
+			Pets       string `rt:"/v1/pets/"`
+			Deductions string `rt:"/v1/deductions/"`
 		}
-	}
-	rts := new(struct {
-		Users      string `rt:"/users/"`
-		Pets       string `rt:"/pets/"`
-		Deductions string `rt:"/deductions/"`
 	})
-	check(Struct(rts))
-	fmt.Println(rts)
-	mux := NewServeMux()
-	defer func() { check(mux.CheckReverse(rts)) }()
-	ok := func(w http.ResponseWriter, r *http.Request) { fmt.Println("ok") }
-	mux.HandleFunc(rts.Users, ok)
-	mux.HandleFunc(rts.Pets, ok)
-	mux.HandleFunc(rts.Deductions, ok)
+	httpRoutes := func() (mux *ServeMux, err error) {
+		err = Struct(&server.rts)
+		if err != nil {
+			return nil, err
+		}
+		fmt.Println(server.rts)
+		mux = NewServeMux()
+		defer func() { err = mux.CheckReverse(server.rts) }()
+
+		ok := func(w http.ResponseWriter, r *http.Request) { fmt.Println("ok") }
+		mux.HandleFunc(server.rts.Users, ok)
+		mux.HandleFunc(server.rts.Pets, ok)
+		mux.HandleFunc(server.rts.Deductions, ok)
+
+		return // naked return is required here.
+	}
+
+	mux, err := httpRoutes()
+	if err != nil {
+		fmt.Println(err)
+	}
+	_ = mux
+	// ... wrap mux up with middleware or call http.ListenAndServe()
+
 	// Output:
-	// &{/users/ /pets/ /deductions/}
-	// success
+	// {/v1/users/ /v1/pets/ /v1/deductions/}
 }
