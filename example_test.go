@@ -30,47 +30,69 @@ func ExampleDecompose_parameter() {
 	// Output: hello world
 }
 
-// This example demonstrates how to write reversible routes and how to ensure your routes are reversible at runtime.
-func ExampleServeMux_reverse() {
-	rts := struct {
-		Sessions string
-		Users    string
-	}{
-		"/sessions/",
-		"/users/",
-	}
-	mux := NewServeMux()
-	mux.HandleFunc(rts.Sessions, func(w http.ResponseWriter, r *http.Request) {
-		// locate the user associated with the session id path parameter.
-		_, pat := mux.Handler(r)
-		sessionID := Decompose(pat, r.URL.Path)
-		userID, err := base64.URLEncoding.DecodeString(sessionID)
-		if err != nil {
-			http.NotFound(w, r)
-			return
+// This complete example demonstrates how to write reversible routes with rt
+// with maximum runtime safety.  The actual server logic is bizarre.  But it
+// demonstrates all the features of rt.
+func Example_reverse() {
+	type Server struct {
+		rts struct {
+			Sessions string `rt:"/v1/sessions/"`
+			Users    string `rt:"/v1/users/"`
 		}
+	}
+	newServer := func() (*Server, error) {
+		s := new(Server)
+		err := Struct(&s.rts)
+		return s, err
+	}
+	// in practice this is method on the Server type.
+	httpRoutes := func(server *Server) (mux *ServeMux, err error) {
+		mux = NewServeMux()
+		defer func() {
+			err = mux.CheckReverse(server.rts)
+		}()
+		mux.HandleFunc(server.rts.Sessions, func(w http.ResponseWriter, r *http.Request) {
+			// locate the user associated with the session id path parameter.
+			_, pat := mux.Handler(r)
+			sessionID := Decompose(pat, r.URL.Path)
+			userID, err := base64.URLEncoding.DecodeString(sessionID)
+			if err != nil {
+				http.NotFound(w, r)
+				return
+			}
 
-		// redirect the client to the associated user resource.
-		path := Compose(rts.Users, string(userID))
-		u := "http://" + r.Host + path
-		http.Redirect(w, r, u, http.StatusSeeOther)
-	})
-	mux.HandleFunc(rts.Users, func(w http.ResponseWriter, r *http.Request) {
-		_, pat := mux.Handler(r)
-		userID := Decompose(pat, r.URL.Path)
-		json.NewEncoder(w).Encode(map[string]string{
-			"id": userID,
+			// redirect the client to the associated user resource.
+			path := Compose(server.rts.Users, string(userID))
+			u := "http://" + r.Host + path
+			http.Redirect(w, r, u, http.StatusSeeOther)
 		})
-	})
-	err := mux.CheckReverse(rts) // ensure that routes are reversible
+		mux.HandleFunc(server.rts.Users, func(w http.ResponseWriter, r *http.Request) {
+			_, pat := mux.Handler(r)
+			userID := Decompose(pat, r.URL.Path)
+			json.NewEncoder(w).Encode(map[string]string{
+				"id": userID,
+			})
+		})
+
+		return // naked return is required for deferred error handling
+	}
+
+	s, err := newServer()
+	if err != nil {
+		log.Fatal(err)
+	}
+	mux, err := httpRoutes(s)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	server := httptest.NewServer(mux)
-	defer server.Close()
+	// here you would call http.ListenAndServe() and be done.
+	httpServer := httptest.NewServer(mux)
+	defer httpServer.Close()
+
+	// make a request to the new server.
 	sessionID := base64.URLEncoding.EncodeToString([]byte("123"))
-	resp, err := http.Get(server.URL + Compose(rts.Sessions, sessionID))
+	resp, err := http.Get(httpServer.URL + Compose(s.rts.Sessions, sessionID))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -80,11 +102,8 @@ func ExampleServeMux_reverse() {
 	// {"id":"123"}
 }
 
-// Basic usage of Struct() to implement reverse routes.  Deferring with
-// mux.CheckReverse(rts) is important as route structure becomes more complex.
+// This example shows how Struct() populates struct field values.
 func ExampleStruct() {
-	// in practice, server would be a type and httpRoutes should be a method
-	// on that type.
 	server := new(struct {
 		rts struct {
 			Users      string `rt:"/v1/users/"`
@@ -92,30 +111,12 @@ func ExampleStruct() {
 			Deductions string `rt:"/v1/deductions/"`
 		}
 	})
-	httpRoutes := func() (mux *ServeMux, err error) {
-		err = Struct(&server.rts)
-		if err != nil {
-			return nil, err
-		}
-		fmt.Println(server.rts)
-		mux = NewServeMux()
-		defer func() { err = mux.CheckReverse(server.rts) }()
-
-		ok := func(w http.ResponseWriter, r *http.Request) { fmt.Println("ok") }
-		mux.HandleFunc(server.rts.Users, ok)
-		mux.HandleFunc(server.rts.Pets, ok)
-		mux.HandleFunc(server.rts.Deductions, ok)
-
-		return // naked return is required here.
-	}
-
-	mux, err := httpRoutes()
+	server.rts.Deductions = "/v1/tax_deductions/"
+	err := Struct(&server.rts)
 	if err != nil {
-		fmt.Println(err)
+		log.Fatal(err)
 	}
-	_ = mux
-	// ... wrap mux up with middleware or call http.ListenAndServe()
-
+	fmt.Println(server.rts)
 	// Output:
-	// {/v1/users/ /v1/pets/ /v1/deductions/}
+	// {/v1/users/ /v1/pets/ /v1/tax_deductions/}
 }
