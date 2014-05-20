@@ -65,7 +65,7 @@ func Example_reverse() {
 		err := Struct(&s.rts)
 		return s, err
 	}
-	// in practice this is method on the Server type.
+	// in practice this is a method on the Server type.
 	httpRoutes := func(server *Server) (mux *ServeMux, err error) {
 		mux = NewServeMux()
 		defer func() {
