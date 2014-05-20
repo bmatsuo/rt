@@ -1,6 +1,8 @@
 package rt
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -30,23 +32,50 @@ func ExampleDecompose_parameter() {
 
 // This example demonstrates how to write reversible routes and how to ensure your routes are reversible at runtime.
 func ExampleServeMux_reverse() {
-	type ExampleRoutes struct {
+	rts := struct {
 		Sessions string
 		Users    string
-	}
-	routes := ExampleRoutes{
+	}{
 		"/sessions/",
 		"/users/",
 	}
 	mux := NewServeMux()
-	mux.HandleFunc(routes.Sessions, func(resp http.ResponseWriter, req *http.Request) {
-		userID := "123"
-		path := Compose(routes.Users, userID)
-		u := "http" + req.Host + path
-		http.Redirect(resp, req, u, http.StatusSeeOther)
+	mux.HandleFunc(rts.Sessions, func(w http.ResponseWriter, r *http.Request) {
+		// locate the user associated with the session id path parameter.
+		_, pat := mux.Handler(r)
+		sessionID := Decompose(pat, r.URL.Path)
+		userID, err := base64.URLEncoding.DecodeString(sessionID)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+
+		// redirect the client to the associated user resource.
+		path := Compose(rts.Users, string(userID))
+		u := "http://" + r.Host + path
+		http.Redirect(w, r, u, http.StatusSeeOther)
 	})
-	mux.HandleFunc(routes.Users, func(resp http.ResponseWriter, req *http.Request) { http.Error(resp, "forbidden", 403) })
-	fmt.Println(mux.CheckReverse(routes))
+	mux.HandleFunc(rts.Users, func(w http.ResponseWriter, r *http.Request) {
+		_, pat := mux.Handler(r)
+		userID := Decompose(pat, r.URL.Path)
+		json.NewEncoder(w).Encode(map[string]string{
+			"id": userID,
+		})
+	})
+	err := mux.CheckReverse(rts) // ensure that routes are reversible
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	server := httptest.NewServer(mux)
+	defer server.Close()
+	sessionID := base64.URLEncoding.EncodeToString([]byte("123"))
+	resp, err := http.Get(server.URL + Compose(rts.Sessions, sessionID))
+	if err != nil {
+		log.Fatal(err)
+	}
+	io.Copy(os.Stdout, resp.Body)
+	resp.Body.Close()
 	// Output:
-	// <nil>
+	// {"id":"123"}
 }
