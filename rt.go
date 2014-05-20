@@ -11,14 +11,16 @@ two are meant to be used together..
 
 Reverse Routes
 
-The Compose function provides path construction for routes.  It's a simple
-abstraction for string concatenation but provides guards for routes that don't
-accept parameters. Compose is flexible can easily be used with http.ServeMux.
+The Compose function provides path construction for routes.  An abstraction for
+string concatenation following the rules of http.ServeMux. Compose is flexible
+and can easily be used with http.ServeMux.
 
-For safer reverse routing, the ServeMux type in this package provides the same
-API as http.ServeMux but exposes an additional method, CheckReverse().  This
-method can ensure that there are compile-time checked named references to route
-all (desired) patterns.
+For safer reverse routing rt defines the ServeMux type with an API identical to
+http.ServeMux except for an additional method, CheckReverse, to help ensure
+runtime references to routes are valid.
+
+The final tool rt provides for building reverse routes is the Struct function.
+It provides a convenient way to define reversible routes.
 */
 package rt
 
