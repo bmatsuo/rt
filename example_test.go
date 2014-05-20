@@ -62,8 +62,8 @@ func Example_reverse() {
 			}
 
 			// redirect the client to the associated user resource.
-			path := Compose(server.rts.Users, string(userID))
-			u := "http://" + r.Host + path
+			u := "http://" + r.Host
+			u += Compose(server.rts.Users, string(userID))
 			http.Redirect(w, r, u, http.StatusSeeOther)
 		})
 		mux.HandleFunc(server.rts.Users, func(w http.ResponseWriter, r *http.Request) {
