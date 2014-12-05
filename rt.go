@@ -33,6 +33,35 @@ import (
 	"sync"
 )
 
+// Break splits path at the first separator and returns the segment followed
+// by the suffix.
+//	path := Decompose("/", "/bmatsuo/rt/tree/master/rt.go")
+//	user, path := Break(path)
+//	if user == "" {
+//		// ...
+//	}
+//	repo, path := Break(path)
+//	if repo == "" {
+//		// ...
+//	}
+//	object, refpath := Break(path)
+//	if object == "" {
+//		// ...
+//	}
+//	if refpath == "" {
+//		// ...
+//	}
+func Break(path string) (top, sub string) {
+	if path == "" {
+		return "", ""
+	}
+	pieces := strings.SplitN(path, "/", 2)
+	if len(pieces) == 1 {
+		return pieces[0], ""
+	}
+	return pieces[0], pieces[1]
+}
+
 // HostPath returns pat's host and path parts.
 func HostPath(pat string) (host, path string) {
 	if pat == "" {
